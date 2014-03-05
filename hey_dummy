@@ -4,6 +4,8 @@ NOTIFIER=notify-send
 LIVE=true
 NAME=$(basename $0)
 
+shifts=0
+
 while getopts "hdn:p:s:b:" option; do
     case $option in
         h)
@@ -24,30 +26,37 @@ while getopts "hdn:p:s:b:" option; do
         ;;
         d)
             unset LIVE
-            shift
+            shifts=$shifts+1
         ;;
         a)
             ALERT=$OPTARG
-            shift; shift
+            shifts=$shifts+2
         ;;
         n)
             NOTIFIER=$OPTARG
-            shift; shift
+            shifts=$shifts+2
         ;;
         p)
             PID=$OPTARG
-            shift; shift
+            shifts=$shifts+2
         ;;
         s)
             SUMMARY_FLAG=$OPTARG
-            shift; shift
+            shifts=$shifts+2
         ;;
         b)
             BODY_FLAG=$OPTARG
-            shift; shift
+            shifts=$shifts+2
         ;;
     esac
 done
+
+echo $@
+while [[ shifts -gt 0 ]]; do
+    shift
+    shifts=$shifts-1
+done
+echo $@
 
 if [[ $LIVE ]] && [[ $PID ]]; then
     while kill -0 $PID &>/dev/null; do
