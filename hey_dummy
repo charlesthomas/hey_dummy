@@ -6,7 +6,7 @@ NAME=$(basename $0)
 
 shifts=0
 
-while getopts "hdn:p:s:b:" option; do
+while getopts "hda:n:p:s:b:" option; do
     case $option in
         h)
             echo -n "$NAME - Alert yourself that a long-running "
@@ -51,12 +51,10 @@ while getopts "hdn:p:s:b:" option; do
     esac
 done
 
-echo $@
 while [[ shifts -gt 0 ]]; do
     shift
     shifts=$shifts-1
 done
-echo $@
 
 if [[ $LIVE ]] && [[ $PID ]]; then
     while kill -0 $PID &>/dev/null; do
