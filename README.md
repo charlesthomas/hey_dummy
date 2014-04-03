@@ -79,3 +79,11 @@ If you're using OS X, it is probably be useful to put this ``alias`` in a ``.bas
 Now ``hey_dummy`` can be used like this on OS X:
 
 	hey_dummy long_running_osx_process
+
+# Using ``hey_dummy`` with ``coinshot``
+[coinshot](https://github.com/charlesthomas/coinshot) is a Python library for
+sending push notifications with [pushover.net](http://pushover.net). As of
+version 2.0.0, it includes a script called ``shoot.py`` which can be used as a
+notifier for ``hey_dummy``.
+
+    hey_dummy -n /path/to/shoot.py -s "-t"
