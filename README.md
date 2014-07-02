@@ -2,88 +2,99 @@ hey_dummy
 =========
 Hey Dummy!, your long-running process has finished/failed!
 
-``hey_dummy`` is a way to run long running processes but bring your attention back to them when they finish. Start a job with ``hey_dummy`` then go back to your RSS reader. ``hey_dummy`` will alert you when the job has finished or failed, and you can go back to whatever it was that job was blocking.
+Version 2.x.x
+-------------
+Version 2.x.x is ***drastically*** different from [Version
+1.0.0](https://github.com/charlesthomas/hey_dummy/releases/tag/1.0.0)
+The paradigm of Version 1.0.0 was to pass a bunch of command line options to
+``hey_dummy`` in order to fire the alert correctly. Version 2.0.0+ is about
+passing the needed values to a *completely separate script* in order to make
+customizing alerts easier.
 
-Usage
------
+$HEY_DUMMY_NOTIFIER
+-------------------
+As of Version 2.0.0, $HEY_DUMMY_NOTIFIER is a required environment variable
+representing the alert script that ``hey_dummy`` should trigger when the
+commands run w/it finish. You should export $HEY_DUMMY_NOTIFIER in your
+``.bashrc`` or ``.bash_profile`` file as appropriate.
 
-    hey_dummy - Alert yourself that a long-running process has completed
-    ---
-    -h - display this help
-    -d - dry run - don't execute the program, just simulate what would happen if you did
-    -a - summary/alert text (defaults to "Hey Dummy!")
-    -n - the notifier app (defaults to `notify-send`)
-    -p - process to attach to
-    -s - summary flag
-    -b - body flag
-    For examples or more information, go here:
-    https://github.com/charlesthomas/hey_dummy/blob/master/README.md
+    export HEY_DUMMY_NOTIFIER='/path/to/alert/script'
 
-Examples
------
-# Vanilla Use
+If $HEY_DUMMY_NOTIFIER is not set when ``hey_dummy`` runs, ``hey_dummy`` will
+fail, and the command you passed to it **will not run**. Instead, you'll see:
 
-	hey_dummy long_running_process
+    HEY_DUMMY_NOTIFIER not set!
 
-This will start ``long_running_process``, and then alert using ``notify-send`` when it completes, with the message:
+What does ``hey_dummy`` actually do now, then?
+----------------------------------------------
+As before, ``hey_dummy`` runs everything you pass as command line arguments.
+However, instead of controlling the alert itself, ``hey_dummy`` passes the
+result status of the passed command to the script designated with
+$HEY_DUMMY_NOTIFIER. It also passes the entirety of the passed command to the
+$HEY_DUMMY_NOTIFIER script (*after* the result code). It also exits with the
+same status as the command it was passed.
 
-	Hey Dummy! long_running_process has finished
+OS X ``growlnotify`` Example
+----------------------------
+Prior to Version 2.0.0, using ``growlnotify`` with ``hey_dummy`` was done like
+this:
 
-# Failure Message
+    hey_dummy -n growlnotify -b "-m" long_running_osx_process
 
-	hey_dummy false
+Now (2.0.0+) instead, create a script containing the following:
 
-This will alert with the message:
+    #!/bin/bash
+    growl_path='/usr/local/bin/growlnotify'
 
-	Hey Dummy! false FAILED
+    status_code=$1
+    command_name=$2
 
-# Alert on a Pre-existing Process
+    # alternately:
+    # status_code=$1
+    # shift
+    # whole_command=$@
 
-	hey_dummy -p $PID
+    if [[ $status_code == 0 ]]; then
+        text="$command_name finished"
+    else
+        text="$command_name FAILED"
+    fi
 
-This will run and check that ``$PID`` is still running every second, until the process goes away, and then alert using ``notify-send``. This will **not** be able to tell you the exit status of the process. The message will say (whether the process exited with 0 or anything else):
+    $GROWL -m "$text" Hey Dummy!
 
-	Hey Dummy! Process #$PID finished
+Export path to script:
 
-You probably want to background ``hey_dummy`` with ``&`` if you want control of that terminal window back, otherwise ``hey_dummy`` will hold it until you kill it or the process you're waiting on finishes.
+    export $HEY_DUMMY_NOTIFIER='/path/to/above/script'
 
-	hey_dummy -p $PID &
+And every time you run ``hey_dummy``, it will execute ``/path/to/above/script``.
 
-# Changing "Hey Dummy!" Text
-If "Hey Dummy!" is too offensive for you, use the ``-a`` flag:
+This is a GIANT change!
+-----------------------
+Yes, it is, but it should give you much more flexibility in the ways you want to
+alert yourself that something is done. For example, I can now make my
+[blink(1)](http://thingm.com/products/blink-1/) blink, play a sound, *and* use
+``growlnotify`` by creating a custom $HEY_DUMMY_NOTIFIER script.
 
-	hey_dummy -a "Pardon me sir, but" long_running_process
+In case you're curious:
 
-The above will alert with:
+    #!/bin/bash
+    AFPLAY='/usr/bin/afplay'
+    BLINK='~/bin/blink1-tool'
+    GROWL='/usr/local/bin/growlnotify'
 
-	Pardon me sir, but long_running_process finished
+    result=$1
+    shift
 
-# Using ``hey_dummy`` on OS X with ``growl-notify``
-``hey_dummy`` uses ``notify-send`` by default, which doesn't exist on OS X. However, OS X *does* have ``growlnotify``, which is basically the same thing. However, in order to use it, you have to pass a flag to have both Summary text and Body text. (Summary and Body are how they are referred to in the ``man`` page for ``notify-send``. Think of it like an email, where Summary is the Subject Line of the email.)
+    if [[ $result == 0 ]]; then
+        color='--green'
+        sfx="~/sfx/work-complete.wav"
+        text="$1 finished"
+    else
+        color='--red'
+        sfx="~/sfx/kaboom.wav"
+        text="$1 FAILED"
+    fi
 
-The syntax is a little weird, but you can ``alias`` this.
-
-	hey_dummy -n growlnotify -b "-m" long_running_osx_process
-
-This tells ``hey_dummy`` to use ``growlnotify`` as the notifier, and tells it to use the ``-m`` flag to pass the body of the alert. ***The double quotes around ``-m`` are extremely important.*** Without them, the ``-m`` flag will be passed to ``hey_dummy`` instead of ``growlnotify``. The output will look like this:
-
-	Hey Dummy! long_running_osx_process finished
-
-In the above message, "long_running_osx_process finished" is the body referenced above.
-
-## Useful Alias
-If you're using OS X, it is probably be useful to put this ``alias`` in a ``.bashrc`` or ``.bash_profile`` file.
-
-	alias hey_dummy='hey_dummy -n growlnotify -b "-m"'
-
-Now ``hey_dummy`` can be used like this on OS X:
-
-	hey_dummy long_running_osx_process
-
-# Using ``hey_dummy`` with ``coinshot``
-[coinshot](https://github.com/charlesthomas/coinshot) is a Python library for
-sending push notifications with [pushover.net](http://pushover.net). As of
-version 2.0.0, it includes a script called ``shoot.py`` which can be used as a
-notifier for ``hey_dummy``.
-
-    hey_dummy -n /path/to/shoot.py -s "-t"
+    $BLINK --quiet $color --glimmer=3 &
+    $AFPLAY $sfx &
+    $GROWL -m "$text" Hey Dummy!
